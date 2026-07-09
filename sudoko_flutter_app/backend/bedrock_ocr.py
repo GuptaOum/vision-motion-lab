@@ -3,9 +3,10 @@ import re
 
 import boto3
 
-# Amazon Nova (and Gemma) are billed as normal AWS usage (covered by credits, no
-# card) - unlike Anthropic/Marketplace models which require a payment instrument.
-DEFAULT_MODEL = "apac.amazon.nova-pro-v1:0"
+# Qwen3 VL 235B: large vision model, credit-covered (no card), usable by the
+# scoped IAM user. Amazon Nova / Gemma are lighter credit-covered fallbacks.
+# Anthropic/Claude here needs a card, so it is not used.
+DEFAULT_MODEL = "qwen.qwen3-vl-235b-a22b"
 
 PROMPT = (
     "The image contains a 9x9 Sudoku puzzle. Read the digits exactly as written, "
