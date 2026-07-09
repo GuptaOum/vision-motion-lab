@@ -1,0 +1,33 @@
+# Core computer vision (used across body_pose_tracking, hand_tracking, opencv_basics)
+opencv-python
+mediapipe
+numpy
+
+# GUI / imaging
+pillow
+
+# Flagship exercise tracker (Excel rep history)
+pandas
+openpyxl
+
+# GUI experiments (gui_experiments/ttk_template.py)
+ttkbootstrap
+customtkinter
+
+# Plotting demos (misc/, opencv_basics)
+matplotlib
+
+# --- Optional / feature-specific ---
+# OCR (ocr/sudoku_ocr.py) — also requires the Tesseract engine installed on your system
+pytesseract
+
+# GPU pose demo (body_pose_tracking/gpu_pose_tracker.py) — install the build matching your CUDA
+torch
+
+# Desktop automation (automation/)
+pyautogui
+keyboard
+pywhatkit
+selenium
+# Windows-only, needed by automation/piano_tiles_bot.py
+pywin32 ; platform_system == "Windows"
