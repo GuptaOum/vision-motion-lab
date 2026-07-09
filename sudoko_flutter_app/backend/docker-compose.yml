@@ -17,5 +17,12 @@ services:
       GROQ_MODEL: ${GROQ_MODEL:-}
       OCRSPACE_API_KEY: ${OCRSPACE_API_KEY:-}
       GOOGLE_VISION_API_KEY: ${GOOGLE_VISION_API_KEY:-}
+      DATA_DIR: /app/data
+      JWT_SECRET: ${JWT_SECRET:-}
+    volumes:
+      - sudoku-data:/app/data
     ports:
       - "${HOST_PORT:-8000}:8000"
+
+volumes:
+  sudoku-data:

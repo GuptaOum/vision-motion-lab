@@ -3,9 +3,12 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../services/session.dart';
 import '../services/sudoku_api.dart';
 import '../widgets/editable_sudoku_grid.dart';
 import '../widgets/sudoku_grid.dart';
+import 'history_screen.dart';
+import 'login_screen.dart';
 
 class SudokuSolverScreen extends StatefulWidget {
   const SudokuSolverScreen({super.key});
@@ -18,6 +21,7 @@ class _SudokuSolverScreenState extends State<SudokuSolverScreen> {
   final _api = SudokuApi();
   final _picker = ImagePicker();
 
+  String? _username;
   Uint8List? _imageBytes;
   List<List<int>>? _grid; // editable, detected then user-corrected
   List<List<int>>? _solved;
@@ -25,6 +29,34 @@ class _SudokuSolverScreenState extends State<SudokuSolverScreen> {
   Set<String> _conflicts = {};
   bool _loading = false;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSession();
+  }
+
+  Future<void> _loadSession() async {
+    _api.authToken = await Session.token();
+    final name = await Session.username();
+    if (mounted) setState(() => _username = name);
+  }
+
+  Future<void> _logout() async {
+    await Session.clear();
+    if (!mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
+  void _handleUnauthorized() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Session expired - please log in again.')),
+    );
+    _logout();
+  }
 
   Future<void> _pick(ImageSource source) async {
     final picked = await _picker.pickImage(source: source, maxWidth: 1600);
@@ -89,7 +121,18 @@ class _SudokuSolverScreenState extends State<SudokuSolverScreen> {
         _solved = solved;
         _selected = null;
       });
+      if (mounted && _api.authToken != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Solved - saved to your history'),
+              duration: Duration(seconds: 2)),
+        );
+      }
     } on SudokuApiException catch (e) {
+      if (e.unauthorized) {
+        _handleUnauthorized();
+        return;
+      }
       setState(() {
         _error = e.message;
         _conflicts = e.conflicts.map((p) => '${p[0]},${p[1]}').toSet();
@@ -116,12 +159,46 @@ class _SudokuSolverScreenState extends State<SudokuSolverScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: const Text('Sudoku Solver')),
+      appBar: AppBar(
+        title: Text(_username == null ? 'Sudoku Solver' : 'Hi, $_username'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.history),
+            tooltip: 'My solves',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => HistoryScreen(api: _api)),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Log out',
+            onPressed: _logout,
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_imageBytes == null && _grid == null) ...[
+              const SizedBox(height: 24),
+              Icon(Icons.document_scanner_outlined,
+                  size: 72, color: theme.colorScheme.primary),
+              const SizedBox(height: 8),
+              Text(
+                'Scan a Sudoku puzzle',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleLarge,
+              ),
+              Text(
+                'Printed or handwritten - take a photo or pick one.',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.outline),
+              ),
+              const SizedBox(height: 24),
+            ],
             Row(
               children: [
                 Expanded(

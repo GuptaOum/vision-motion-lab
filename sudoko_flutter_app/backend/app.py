@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 import cv2
 import numpy as np
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from fastapi import FastAPI, File, UploadFile, HTTPException, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, field_validator
 
@@ -17,6 +17,7 @@ import vision_ocr
 import ocrspace_ocr
 import groq_ocr
 import bedrock_ocr
+import store
 
 BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "").strip()
 AWS_REGION = os.environ.get("AWS_REGION", "ap-south-1").strip()
@@ -37,6 +38,39 @@ class GridIn(BaseModel):
         if any(not (0 <= n <= 9) for row in v for n in row):
             raise ValueError("each cell must be 0-9 (0 = blank)")
         return v
+
+
+class Credentials(BaseModel):
+    username: str
+    password: str
+
+    @field_validator("username")
+    @classmethod
+    def _username(cls, v):
+        v = v.strip()
+        if not (3 <= len(v) <= 30) or not v.replace("_", "").isalnum():
+            raise ValueError("username must be 3-30 letters, digits, or underscores")
+        return v
+
+    @field_validator("password")
+    @classmethod
+    def _password(cls, v):
+        if len(v) < 6:
+            raise ValueError("password must be at least 6 characters")
+        return v
+
+
+def current_user(authorization: str = Header(default="")):
+    """Optional auth: returns the token payload dict, or None if absent/invalid."""
+    if authorization.startswith("Bearer "):
+        return store.verify_token(authorization[7:])
+    return None
+
+
+def require_user(user=Depends(current_user)):
+    if user is None:
+        raise HTTPException(status_code=401, detail="Please log in again.")
+    return user
 
 
 def preprocess_for_llm(data):
@@ -82,13 +116,15 @@ def find_conflicts(grid):
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     sk.configure_tesseract()
+    store.init()
     yield
 
 
 app = FastAPI(
     title="Sudoku Solver API",
-    version="2.0.0",
-    description="Read a Sudoku puzzle from a photo (/read), let the user correct it, then solve (/solve).",
+    version="3.0.0",
+    description="Read a Sudoku puzzle from a photo (/read), correct it, solve it (/solve), "
+                "with accounts (/auth/*) and per-user solve history (/history).",
     lifespan=lifespan,
 )
 
@@ -168,8 +204,9 @@ async def read(file: UploadFile = File(..., description="image of a Sudoku puzzl
 
 
 @app.post("/solve")
-async def solve(payload: GridIn):
-    """Solve a (user-confirmed) 9x9 grid. Reports conflicting cells instead of guessing."""
+async def solve(payload: GridIn, user=Depends(current_user)):
+    """Solve a (user-confirmed) 9x9 grid. Reports conflicting cells instead of guessing.
+    When called with a valid token, the solve is saved to the user's history."""
     grid = payload.grid
 
     conflicts = find_conflicts(grid)
@@ -187,4 +224,38 @@ async def solve(payload: GridIn):
     if not sk.solve(solved):
         raise HTTPException(status_code=422, detail={"message": "No solution exists for this grid."})
 
-    return {"solved": solved}
+    saved = False
+    if user:
+        store.save_solve(user["uid"], grid, solved)
+        saved = True
+
+    return {"solved": solved, "saved": saved}
+
+
+@app.post("/auth/signup")
+def signup(creds: Credentials):
+    uid = store.create_user(creds.username, creds.password)
+    if uid is None:
+        raise HTTPException(status_code=409, detail="That username is already taken.")
+    return {"token": store.issue_token(uid, creds.username), "username": creds.username}
+
+
+@app.post("/auth/login")
+def login(creds: Credentials):
+    result = store.authenticate(creds.username, creds.password)
+    if result is None:
+        raise HTTPException(status_code=401, detail="Wrong username or password.")
+    uid, username = result
+    return {"token": store.issue_token(uid, username), "username": username}
+
+
+@app.get("/history")
+def history(user=Depends(require_user)):
+    return {"solves": store.list_solves(user["uid"])}
+
+
+@app.delete("/history/{solve_id}")
+def delete_history(solve_id: int, user=Depends(require_user)):
+    if not store.delete_solve(user["uid"], solve_id):
+        raise HTTPException(status_code=404, detail="Not found.")
+    return {"deleted": solve_id}
