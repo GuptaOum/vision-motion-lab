@@ -72,7 +72,12 @@ def read_grid_groq(image_bytes, api_key, model=DEFAULT_MODEL, timeout=60.0):
     }
     resp = httpx.post(
         GROQ_URL,
-        headers={"Authorization": f"Bearer {api_key}"},
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            # Groq is behind Cloudflare, which 403s (error 1010) some default
+            # library User-Agents; a browser-like UA avoids the block.
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) SudokuBackend/1.0",
+        },
         json=body,
         timeout=timeout,
     )
