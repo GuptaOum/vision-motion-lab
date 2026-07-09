@@ -8,11 +8,26 @@ GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
 DEFAULT_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 PROMPT = (
-    "The image contains a 9x9 Sudoku puzzle. Read the digits exactly as written, "
-    "row by row, top to bottom, left to right. Return ONLY a JSON object of the "
-    'form {"grid": [[...],[...], ... 9 rows]} where each row has 9 integers and '
-    "each cell is the digit 1-9, or 0 for an empty cell. Do not add any text, "
-    "explanation, or markdown fences."
+    "The image contains a 9x9 Sudoku puzzle. It may be PRINTED or HAND-DRAWN on "
+    "paper (possibly lined/ruled paper, photographed at an angle, with uneven "
+    "hand-drawn grid lines and handwritten digits).\n"
+    "\n"
+    "How to read it:\n"
+    "- First locate the Sudoku grid and its 9x9 cell structure, ignoring notebook "
+    "ruling lines, paper edges, shadows, and background. Hand-drawn cells vary in "
+    "size - judge each digit's row/column by its position relative to the grid's "
+    "own lines, not by absolute spacing.\n"
+    "- Transcribe each cell exactly as written. Do NOT solve the puzzle and do NOT "
+    "fill in any cell the writer left empty - empty cells are 0.\n"
+    "- Handwriting cautions: 1 vs 7 (a 7 usually has a horizontal top bar), 4 vs 9, "
+    "5 vs 6, 6 vs 0, 2 vs Z-like strokes, 8 vs 3. Stray dots, ink smudges, or "
+    "crossed-out marks are NOT digits.\n"
+    "- If a cell is truly unreadable, use 0 rather than guessing.\n"
+    "\n"
+    "Read row by row, top to bottom, left to right. Before answering, verify you "
+    "have exactly 9 rows of exactly 9 integers.\n"
+    'Return ONLY a JSON object of the form {"grid": [[...], ... 9 rows]} where '
+    "each cell is the digit 1-9, or 0 for an empty cell. No text, no markdown fences."
 )
 
 
