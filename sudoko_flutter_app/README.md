@@ -1,22 +1,26 @@
 # Sudoku Solver — Flutter app
 
-A minimal Flutter front end for the [`../backend`](../backend) FastAPI service. Pick or capture a
-photo of a Sudoku puzzle, send it to `POST /solve`, and render the solved board — clues in bold,
-solver-filled numbers highlighted.
+A self-contained full-stack Sudoku solver: the Flutter front end plus its FastAPI
+[`backend/`](backend) and the CV/solver core in [`ocr/`](ocr). Pick or capture a photo of a Sudoku
+puzzle, send it to `POST /solve`, and render the solved board — clues in bold, solver-filled numbers
+highlighted.
 
 ## What's here
 
-Only the app-specific source is committed (the generated platform folders are not):
+The Flutter source, the backend, and the OCR/solver live together. Generated platform folders
+(`android/`, `build/`, …) are not committed:
 
 ```
-flutter_app/
+sudoko_flutter_app/
 ├── pubspec.yaml
-└── lib/
-    ├── main.dart                       App entry + theme
-    ├── models/solve_result.dart        Parses the /solve JSON response
-    ├── services/sudoku_api.dart        Multipart POST to the backend
-    ├── widgets/sudoku_grid.dart        9x9 board renderer
-    └── screens/sudoku_solver_screen.dart  Pick image → solve → show grid
+├── lib/
+│   ├── main.dart                       App entry + theme
+│   ├── models/solve_result.dart        Parses the /solve JSON response
+│   ├── services/sudoku_api.dart        Multipart POST to the backend
+│   ├── widgets/sudoku_grid.dart        9x9 board renderer
+│   └── screens/sudoku_solver_screen.dart  Pick image → solve → show grid
+├── backend/                            FastAPI POST /solve service (Docker)
+└── ocr/sudoku_ocr.py                   CV pipeline + backtracking solver
 ```
 
 ## Setup
@@ -25,14 +29,14 @@ You need the [Flutter SDK](https://docs.flutter.dev/get-started/install). Becaus
 folders (`android/`, `ios/`, …) aren't committed, generate them on top of this source:
 
 ```bash
-cd flutter_app
+cd sudoko_flutter_app
 flutter create .          # regenerates android/ios/etc without touching lib/ or pubspec.yaml
 flutter pub get
 ```
 
 ## Point the app at your backend
 
-Start the backend first (see [../backend/README.md](../backend/README.md)), then set the URL in
+Start the backend first (see [backend/README.md](backend/README.md)), then set the URL in
 [`lib/services/sudoku_api.dart`](lib/services/sudoku_api.dart):
 
 | Where the app runs | `baseUrl` |

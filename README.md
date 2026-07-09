@@ -53,8 +53,6 @@ vision-motion-lab/
 │   ├── webcam_resize.py             Resize demo
 │   ├── webcam_snapshot.py           Grab a single frame to disk
 │   └── edge_detection.py            Live Canny edge detection
-├── ocr/
-│   └── sudoku_ocr.py                Detect a Sudoku grid, OCR its digits, and solve it
 ├── automation/             Desktop automation bots
 │   ├── piano_tiles_bot.py           Pixel-watching auto-clicker for Piano Tiles
 │   ├── spiral_drawing.py            Draw a spiral by moving the mouse
@@ -67,19 +65,23 @@ vision-motion-lab/
 │   ├── turtle_keyboard_draw.py      Keyboard-controlled turtle drawing
 │   └── ttk_template.py              ttkbootstrap / customtkinter starter
 ├── misc/                   Small standalone learning snippets
-├── backend/                FastAPI service exposing the Sudoku solver over HTTP
-├── flutter_app/            Flutter front end for the Sudoku solver
+├── sudoko_flutter_app/     Self-contained full-stack Sudoku solver
+│   ├── ocr/sudoku_ocr.py           CV pipeline + backtracking solver (CLI)
+│   ├── backend/                    FastAPI POST /solve service (Dockerized)
+│   └── lib/                        Flutter app: pick photo -> solve -> render
 └── assets/                 Sample media (Bicep Curl.mp4, goku.png)
 ```
 
 ### Sudoku solver, end to end
 
-- [`ocr/sudoku_ocr.py`](ocr/sudoku_ocr.py) — the CV pipeline + backtracking solver (CLI).
-- [`backend/`](backend) — a FastAPI service wrapping it in a `POST /solve` endpoint that takes a
-  puzzle photo and returns the detected and solved grids as JSON.
-  See [backend/README.md](backend/README.md).
-- [`flutter_app/`](flutter_app) — a minimal Flutter screen: pick/capture a photo, call `/solve`,
-  and render the solved board. See [flutter_app/README.md](flutter_app/README.md).
+Everything for the Sudoku feature lives together in [`sudoko_flutter_app/`](sudoko_flutter_app):
+
+- [`ocr/sudoku_ocr.py`](sudoko_flutter_app/ocr/sudoku_ocr.py) — the CV pipeline + backtracking solver (CLI).
+- [`backend/`](sudoko_flutter_app/backend) — a FastAPI service wrapping it in a `POST /solve` endpoint that
+  takes a puzzle photo and returns the detected and solved grids as JSON.
+  See [backend/README.md](sudoko_flutter_app/backend/README.md).
+- Flutter app (`lib/`) — a minimal screen: pick/capture a photo, call `/solve`, and render the
+  solved board. See [sudoko_flutter_app/README.md](sudoko_flutter_app/README.md).
 
 ## Setup
 
@@ -98,7 +100,7 @@ pip install -r requirements.txt
 
 Some scripts need extra, platform-specific tools (see [Notes](#notes-and-caveats)):
 
-- `ocr/sudoku_ocr.py` needs the [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) engine installed on your system.
+- `sudoko_flutter_app/ocr/sudoku_ocr.py` needs the [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) engine installed on your system.
 - `automation/piano_tiles_bot.py` uses `pywin32` and is **Windows-only**.
 - `body_pose_tracking/gpu_pose_tracker.py` will use CUDA if a compatible PyTorch + GPU is available, otherwise it falls back to CPU.
 
@@ -112,7 +114,7 @@ python hand_tracking/finger_counter_labeled.py
 python opencv_basics/edge_detection.py
 
 # Sudoku: read a puzzle photo, solve it, and save the filled board
-python ocr/sudoku_ocr.py path/to/puzzle.jpg --save solved.png
+python sudoko_flutter_app/ocr/sudoku_ocr.py path/to/puzzle.jpg --save solved.png
 ```
 
 Most webcam windows share these keyboard controls:

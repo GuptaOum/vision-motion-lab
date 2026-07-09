@@ -10,7 +10,7 @@ Requires **Python 3.9+** and the [Tesseract OCR engine](https://github.com/tesse
 installed on the machine (the pip package `pytesseract` only wraps it).
 
 ```bash
-cd backend
+cd sudoko_flutter_app/backend
 python -m venv .venv
 # Windows
 .venv\Scripts\activate
@@ -112,11 +112,11 @@ final widget = Image.memory(bytes);
 ## Docker
 
 The image bundles the Tesseract engine and uses `opencv-python-headless`, so no host setup is
-needed beyond Docker. The build context is the **repo root** (it pulls in both `backend/` and
-`ocr/`), which the compose file already handles.
+needed beyond Docker. The build context is the app folder `sudoko_flutter_app/` (it pulls in both
+`backend/` and `ocr/`), which the compose file already handles.
 
 ```bash
-cd backend
+cd sudoko_flutter_app/backend
 docker compose up -d --build
 # API on http://localhost:8000  (override with HOST_PORT)
 ```
@@ -127,7 +127,7 @@ Same flow as the FaceAttendance stack — `git archive → scp → docker compos
 in [`deploy.ps1`](deploy.ps1):
 
 ```powershell
-cd backend
+cd sudoko_flutter_app/backend
 .\deploy.ps1 -Server ec2-user@<EC2_IP> -KeyPath C:\Users\hp\.ssh\<key>.pem
 ```
 

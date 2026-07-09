@@ -15,14 +15,15 @@ $ErrorActionPreference = "Stop"
 $archive = Join-Path $env:TEMP "sudoku-api.tar.gz"
 
 Write-Host "Packaging backend + ocr from git HEAD..."
-git archive --format=tar.gz -o $archive HEAD backend ocr
+$repoRoot = (git rev-parse --show-toplevel)
+git -C $repoRoot archive --format=tar.gz -o $archive HEAD sudoko_flutter_app/backend sudoko_flutter_app/ocr
 
 Write-Host "Copying to $Server ..."
 ssh -i $KeyPath $Server "mkdir -p $RemoteDir"
 scp -i $KeyPath $archive "${Server}:$RemoteDir/sudoku-api.tar.gz"
 
 Write-Host "Building and starting the container on the remote..."
-$remote = "cd $RemoteDir && tar xzf sudoku-api.tar.gz && rm sudoku-api.tar.gz && cd backend && HOST_PORT=$HostPort docker compose up -d --build"
+$remote = "cd $RemoteDir && tar xzf sudoku-api.tar.gz && rm sudoku-api.tar.gz && cd sudoko_flutter_app/backend && HOST_PORT=$HostPort docker compose up -d --build"
 ssh -i $KeyPath $Server $remote
 
 $hostOnly = $Server.Split("@")[-1]
