@@ -7,6 +7,8 @@ from threading import Thread
 import os
 import tensorflow as tf
 
+ASSETS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets")
+
 mpDraw = mp.solutions.drawing_utils
 mpPose = mp.solutions.pose
 
@@ -72,7 +74,7 @@ def start_arm_exercise():
         return  # Prevent multiple instances
 
     exercise_running = True
-    cap = cv2.VideoCapture("Bicep Curl.mp4")
+    cap = cv2.VideoCapture(os.path.join(ASSETS_DIR, "Bicep Curl.mp4"))
     pTime = 0
     stage = None
     stage1 = None

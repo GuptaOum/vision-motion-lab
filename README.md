@@ -109,10 +109,11 @@ Most webcam windows share these keyboard controls:
 
 ## Notes and caveats
 
-- **Assets by filename.** A few scripts open media by a bare filename (e.g.
-  `"Bicep Curl.mp4"`, `"goku.png"`). Copies live in [`assets/`](assets); run those scripts from a
-  folder containing the file, or copy the asset next to the script. The code is kept as originally
-  written and is not modified to rewrite paths.
+- **Bundled assets resolve automatically.** `exercise_tracker.py` (`Bicep Curl.mp4`) and
+  `image_viewer.py` (`goku.png`) locate their media in [`assets/`](assets) relative to the script,
+  so they run from any working directory. A couple of throwaway scripts still reference files that
+  were never part of this project (`image_grid_viewer.py` → a personal photo, `play_sound.py` → a
+  sample WAV); drop your own file in and adjust the name to use them.
 - **Tinkering, not production.** These are learning iterations — expect duplicated logic across the
   `body_pose_tracking` scripts, broad `try/except` blocks, and hard-coded screen coordinates in the
   automation bots (`piano_tiles_bot.py` was tuned to one specific screen).
