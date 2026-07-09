@@ -68,15 +68,18 @@ vision-motion-lab/
 │   └── ttk_template.py              ttkbootstrap / customtkinter starter
 ├── misc/                   Small standalone learning snippets
 ├── backend/                FastAPI service exposing the Sudoku solver over HTTP
+├── flutter_app/            Flutter front end for the Sudoku solver
 └── assets/                 Sample media (Bicep Curl.mp4, goku.png)
 ```
 
-### Sudoku solver as an API
+### Sudoku solver, end to end
 
-The [`backend/`](backend) folder wraps `ocr/sudoku_ocr.py` in a FastAPI service with a
-`POST /solve` endpoint — upload a puzzle photo, get the detected and solved grids back as JSON
-(handy for a mobile/Flutter front end). See [backend/README.md](backend/README.md) for setup,
-the endpoint spec, and a Flutter call example.
+- [`ocr/sudoku_ocr.py`](ocr/sudoku_ocr.py) — the CV pipeline + backtracking solver (CLI).
+- [`backend/`](backend) — a FastAPI service wrapping it in a `POST /solve` endpoint that takes a
+  puzzle photo and returns the detected and solved grids as JSON.
+  See [backend/README.md](backend/README.md).
+- [`flutter_app/`](flutter_app) — a minimal Flutter screen: pick/capture a photo, call `/solve`,
+  and render the solved board. See [flutter_app/README.md](flutter_app/README.md).
 
 ## Setup
 
