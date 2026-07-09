@@ -14,13 +14,13 @@ class SudokuApiException implements Exception {
 }
 
 class SudokuApi {
-  // Where the FastAPI backend is running:
+  // Deployed FastAPI backend (EC2, ap-south-1). For local dev, pass a baseUrl:
   //   Android emulator .... http://10.0.2.2:8000
   //   iOS simulator ....... http://localhost:8000
   //   Real device / web ... http://<your-computer-LAN-IP>:8000
   final String baseUrl;
 
-  SudokuApi({this.baseUrl = 'http://10.0.2.2:8000'});
+  SudokuApi({this.baseUrl = 'http://3.109.177.77:8000'});
 
   Future<SolveResult> solve(
     Uint8List imageBytes, {
