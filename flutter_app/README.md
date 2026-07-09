@@ -47,6 +47,30 @@ Start the backend first (see [../backend/README.md](../backend/README.md)), then
 flutter run
 ```
 
+## Build an Android APK
+
+The `android/` folder is generated (not committed), so after `flutter create .` re-apply these three
+tweaks, then build:
+
+1. **Allow cleartext to the backend** (the API is plain HTTP). Create
+   `android/app/src/main/res/xml/network_security_config.xml`:
+   ```xml
+   <?xml version="1.0" encoding="utf-8"?>
+   <network-security-config>
+       <domain-config cleartextTrafficPermitted="true">
+           <domain includeSubdomains="false">3.109.177.77</domain>
+       </domain-config>
+   </network-security-config>
+   ```
+   and reference it on `<application>` in `android/app/src/main/AndroidManifest.xml`:
+   `android:networkSecurityConfig="@xml/network_security_config"`.
+2. **Windows Kotlin cache-lock fix** — add `kotlin.incremental=false` to `android/gradle.properties`.
+3. Build:
+   ```bash
+   flutter build apk --release
+   ```
+   Output: `build/app/outputs/flutter-apk/app-release.apk`.
+
 ## Permissions
 
 `image_picker` needs the usual camera / photo permissions:
