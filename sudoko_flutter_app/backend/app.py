@@ -15,7 +15,10 @@ import sudoku_ocr as sk
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import vision_ocr
 import ocrspace_ocr
+import groq_ocr
 
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "").strip() or groq_ocr.DEFAULT_MODEL
 VISION_API_KEY = os.environ.get("GOOGLE_VISION_API_KEY", "").strip()
 OCRSPACE_API_KEY = os.environ.get("OCRSPACE_API_KEY", "").strip()
 
@@ -81,6 +84,15 @@ async def read(file: UploadFile = File(..., description="image of a Sudoku puzzl
     data = await file.read()
     if not data:
         raise HTTPException(status_code=400, detail="Empty file upload.")
+
+    # LLM path: hand the whole photo to the vision model, which finds the grid
+    # itself (no OpenCV detection needed - best for messy/handwritten grids).
+    if GROQ_API_KEY:
+        try:
+            detected = groq_ocr.read_grid_groq(data, GROQ_API_KEY, GROQ_MODEL)
+            return {"detected": detected, "engine": "groq"}
+        except Exception:
+            pass  # fall through to the OpenCV + OCR pipeline
 
     image = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
     if image is None:

@@ -7,8 +7,10 @@ services:
     container_name: sudoku-api
     restart: unless-stopped
     environment:
-      # Set these in a gitignored .env next to this file to enable cloud OCR.
-      # OCR.space is preferred; Vision is a fallback; else Tesseract is used.
+      # Set these in a gitignored .env next to this file. Reader priority:
+      # Groq (vision LLM) -> OCR.space -> Vision -> Tesseract (always available).
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-}
       OCRSPACE_API_KEY: ${OCRSPACE_API_KEY:-}
       GOOGLE_VISION_API_KEY: ${GOOGLE_VISION_API_KEY:-}
     ports:
