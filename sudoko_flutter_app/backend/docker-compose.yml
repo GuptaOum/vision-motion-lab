@@ -7,8 +7,9 @@ services:
     container_name: sudoku-api
     restart: unless-stopped
     environment:
-      # Set in a gitignored .env next to this file to enable Google Cloud Vision OCR.
-      # If empty, the backend falls back to Tesseract automatically.
+      # Set these in a gitignored .env next to this file to enable cloud OCR.
+      # OCR.space is preferred; Vision is a fallback; else Tesseract is used.
+      OCRSPACE_API_KEY: ${OCRSPACE_API_KEY:-}
       GOOGLE_VISION_API_KEY: ${GOOGLE_VISION_API_KEY:-}
     ports:
       - "${HOST_PORT:-8000}:8000"

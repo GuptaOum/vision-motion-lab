@@ -14,8 +14,10 @@ import sudoku_ocr as sk
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import vision_ocr
+import ocrspace_ocr
 
 VISION_API_KEY = os.environ.get("GOOGLE_VISION_API_KEY", "").strip()
+OCRSPACE_API_KEY = os.environ.get("OCRSPACE_API_KEY", "").strip()
 
 
 class GridIn(BaseModel):
@@ -91,14 +93,21 @@ async def read(file: UploadFile = File(..., description="image of a Sudoku puzzl
 
     engine = "tesseract"
     detected = None
-    if VISION_API_KEY:
+    if OCRSPACE_API_KEY:
+        try:
+            detected = ocrspace_ocr.read_grid_ocrspace(warped, OCRSPACE_API_KEY)
+            engine = "ocrspace"
+        except Exception:
+            detected = None
+    if detected is None and VISION_API_KEY:
         try:
             detected = vision_ocr.read_grid_vision(warped, VISION_API_KEY)
             engine = "vision"
         except Exception:
-            detected = None  # fall back to Tesseract on any Vision failure
+            detected = None
     if detected is None:
         detected = sk.read_grid(warped)
+        engine = "tesseract"
 
     return {"detected": detected, "engine": engine}
 
