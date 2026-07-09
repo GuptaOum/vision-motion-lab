@@ -39,6 +39,31 @@ class GridIn(BaseModel):
         return v
 
 
+def preprocess_for_llm(data):
+    """De-warp/crop the Sudoku board and boost contrast for the vision model.
+
+    Returns PNG bytes of the straightened board with a small margin, or None if
+    the board couldn't be located (caller then sends the raw photo instead).
+    """
+    image = cv2.imdecode(np.frombuffer(data, np.uint8), cv2.IMREAD_COLOR)
+    if image is None:
+        return None
+    try:
+        warped = sk.find_grid(image, side=1000)
+    except Exception:
+        return None
+
+    # even out lighting/shadows and make pen strokes pop
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
+    warped = clahe.apply(warped)
+
+    # small white margin so edge digits aren't flush against the border
+    warped = cv2.copyMakeBorder(warped, 20, 20, 20, 20, cv2.BORDER_CONSTANT, value=255)
+
+    ok, buf = cv2.imencode(".png", warped)
+    return buf.tobytes() if ok else None
+
+
 def find_conflicts(grid):
     """Return [row, col] pairs whose value duplicates another in its row/column/box."""
     bad = []
@@ -88,18 +113,26 @@ async def read(file: UploadFile = File(..., description="image of a Sudoku puzzl
     if not data:
         raise HTTPException(status_code=400, detail="Empty file upload.")
 
-    # LLM path: hand the whole photo to a vision model, which finds the grid
-    # itself (no OpenCV detection needed - best for messy/handwritten grids).
+    # OpenCV pre-clean for the LLM: locate the board, de-warp/crop it to a
+    # straight square, and boost contrast so digits stand out from paper.
+    prepped = preprocess_for_llm(data)
+
+    # LLM path: vision model reads the (cleaned) board image. If the crop was
+    # bad (model finds almost nothing), retry once on the raw photo.
     if BEDROCK_MODEL_ID:
         try:
+            if prepped is not None:
+                detected = bedrock_ocr.read_grid_bedrock(prepped, BEDROCK_MODEL_ID, AWS_REGION)
+                if sum(1 for row in detected for v in row if v) >= 10:
+                    return {"detected": detected, "engine": "bedrock", "preprocessed": True}
             detected = bedrock_ocr.read_grid_bedrock(data, BEDROCK_MODEL_ID, AWS_REGION)
-            return {"detected": detected, "engine": "bedrock"}
+            return {"detected": detected, "engine": "bedrock", "preprocessed": False}
         except Exception:
             pass
     if GROQ_API_KEY:
         try:
-            detected = groq_ocr.read_grid_groq(data, GROQ_API_KEY, GROQ_MODEL)
-            return {"detected": detected, "engine": "groq"}
+            detected = groq_ocr.read_grid_groq(prepped or data, GROQ_API_KEY, GROQ_MODEL)
+            return {"detected": detected, "engine": "groq", "preprocessed": prepped is not None}
         except Exception:
             pass  # fall through to the OpenCV + OCR pipeline
 
