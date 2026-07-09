@@ -1,4 +1,3 @@
-import base64
 import hashlib
 import hmac
 import json
@@ -7,6 +6,8 @@ import secrets
 import sqlite3
 import time
 from datetime import datetime, timezone
+
+import jwt
 
 DATA_DIR = os.environ.get(
     "DATA_DIR", os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
@@ -78,36 +79,21 @@ def _verify_password(password, stored):
     return hmac.compare_digest(check, digest)
 
 
-# ---- tokens (HMAC-signed, stdlib only) ----
-
-def _b64(data):
-    return base64.urlsafe_b64encode(data).decode().rstrip("=")
-
-
-def _unb64(s):
-    return base64.urlsafe_b64decode(s + "=" * (-len(s) % 4))
-
+# ---- tokens (JWT, HS256) ----
 
 def issue_token(uid, username, days=180):
-    payload = _b64(json.dumps(
-        {"uid": uid, "username": username, "exp": int(time.time()) + days * 86400}
-    ).encode())
-    sig = _b64(hmac.new(_SECRET, payload.encode(), hashlib.sha256).digest())
-    return f"{payload}.{sig}"
+    return jwt.encode(
+        {"uid": uid, "username": username, "exp": int(time.time()) + days * 86400},
+        _SECRET,
+        algorithm="HS256",
+    )
 
 
 def verify_token(token):
-    """Return the payload dict for a valid, unexpired token; else None."""
+    """Return the payload dict for a valid, unexpired JWT; else None."""
     try:
-        payload, sig = token.split(".")
-        expect = _b64(hmac.new(_SECRET, payload.encode(), hashlib.sha256).digest())
-        if not hmac.compare_digest(sig, expect):
-            return None
-        data = json.loads(_unb64(payload))
-        if data.get("exp", 0) < time.time():
-            return None
-        return data
-    except Exception:
+        return jwt.decode(token, _SECRET, algorithms=["HS256"])
+    except jwt.InvalidTokenError:
         return None
 
 

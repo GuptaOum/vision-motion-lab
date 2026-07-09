@@ -3,6 +3,7 @@ uvicorn[standard]
 python-multipart
 httpx
 boto3
+PyJWT
 
 # shared with the CV pipeline in ../ocr/sudoku_ocr.py
 # headless build: no GUI/X11 libs, smaller image, right choice for a server
