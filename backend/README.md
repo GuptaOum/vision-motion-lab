@@ -1,0 +1,117 @@
+# Sudoku Solver API
+
+A small [FastAPI](https://fastapi.tiangolo.com/) service that wraps the computer-vision
+pipeline in [`../ocr/sudoku_ocr.py`](../ocr/sudoku_ocr.py). Upload a photo of a Sudoku puzzle and
+get back the detected grid and the solved grid as JSON (optionally with a rendered image).
+
+## Setup
+
+Requires **Python 3.9+** and the [Tesseract OCR engine](https://github.com/tesseract-ocr/tesseract)
+installed on the machine (the pip package `pytesseract` only wraps it).
+
+```bash
+cd backend
+python -m venv .venv
+# Windows
+.venv\Scripts\activate
+# macOS / Linux
+source .venv/bin/activate
+
+pip install -r requirements.txt
+```
+
+## Run
+
+```bash
+uvicorn app:app --reload --host 0.0.0.0 --port 8000
+```
+
+- Interactive docs (Swagger UI): http://localhost:8000/docs
+- Health check: `GET http://localhost:8000/`
+
+> `--host 0.0.0.0` makes it reachable from a phone/emulator on your LAN. From the Android emulator,
+> reach your host machine at `http://10.0.2.2:8000`.
+
+## Endpoint
+
+### `POST /solve`
+
+Multipart form upload.
+
+| Field / param | Type | Description |
+| --- | --- | --- |
+| `file` (form-data) | image | Photo of a Sudoku puzzle |
+| `include_image` (query) | bool | If `true`, also returns a base64 PNG of the solved board |
+
+**Success `200`**
+
+```json
+{
+  "detected": [[5,3,0, ...], ...],
+  "solved":   [[5,3,4, ...], ...],
+  "solved_image_png_base64": "iVBORw0K..."   // only when include_image=true
+}
+```
+
+`0` in `detected` marks a blank cell. Rows are top-to-bottom, columns left-to-right.
+
+**Errors**
+
+| Status | When |
+| --- | --- |
+| `400` | Empty upload or the image could not be decoded |
+| `422` | No 4-corner grid found, OCR produced rule-breaking digits, or the puzzle is unsolvable |
+
+## Try it with curl
+
+```bash
+curl -F "file=@puzzle.jpg" "http://localhost:8000/solve"
+curl -F "file=@puzzle.jpg" "http://localhost:8000/solve?include_image=true"
+```
+
+## Call it from Flutter
+
+Using the [`http`](https://pub.dev/packages/http) package:
+
+```dart
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
+Future<List<List<int>>> solveSudoku(String imagePath) async {
+  // Use 10.0.2.2 for the Android emulator, or your machine's LAN IP on a real device.
+  final uri = Uri.parse('http://10.0.2.2:8000/solve');
+
+  final request = http.MultipartRequest('POST', uri)
+    ..files.add(await http.MultipartFile.fromPath('file', imagePath));
+
+  final streamed = await request.send();
+  final response = await http.Response.fromStream(streamed);
+
+  if (response.statusCode != 200) {
+    throw Exception('Solve failed (${response.statusCode}): ${response.body}');
+  }
+
+  final data = jsonDecode(response.body) as Map<String, dynamic>;
+  return (data['solved'] as List)
+      .map((row) => (row as List).map((n) => n as int).toList())
+      .toList();
+}
+```
+
+To display the rendered board, request `?include_image=true` and decode the base64 field:
+
+```dart
+import 'dart:convert';
+import 'package:flutter/material.dart';
+
+// bytes -> Image widget
+final bytes = base64Decode(data['solved_image_png_base64'] as String);
+final widget = Image.memory(bytes);
+```
+
+## Notes
+
+- Accuracy is bounded by the OCR step — feed a clear, straight-on image for best results
+  (see the caveats in the root [README](../README.md#notes-and-caveats)).
+- The CORS policy is wide open for development. Restrict `allow_origins` in `app.py` before
+  exposing this anywhere public.

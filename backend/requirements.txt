@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-multipart
+
+# shared with the CV pipeline in ../ocr/sudoku_ocr.py
+opencv-python
+numpy
+pytesseract

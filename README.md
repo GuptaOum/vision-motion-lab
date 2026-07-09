@@ -67,8 +67,16 @@ vision-motion-lab/
 │   ├── turtle_keyboard_draw.py      Keyboard-controlled turtle drawing
 │   └── ttk_template.py              ttkbootstrap / customtkinter starter
 ├── misc/                   Small standalone learning snippets
+├── backend/                FastAPI service exposing the Sudoku solver over HTTP
 └── assets/                 Sample media (Bicep Curl.mp4, goku.png)
 ```
+
+### Sudoku solver as an API
+
+The [`backend/`](backend) folder wraps `ocr/sudoku_ocr.py` in a FastAPI service with a
+`POST /solve` endpoint — upload a puzzle photo, get the detected and solved grids back as JSON
+(handy for a mobile/Flutter front end). See [backend/README.md](backend/README.md) for setup,
+the endpoint spec, and a Flutter call example.
 
 ## Setup
 
