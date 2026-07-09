@@ -87,7 +87,8 @@ async def read(file: UploadFile = File(..., description="image of a Sudoku puzzl
         raise HTTPException(status_code=400, detail="Could not decode the uploaded image.")
 
     try:
-        warped = sk.find_grid(image)
+        # larger board = more pixels per digit, which helps the OCR engines
+        warped = sk.find_grid(image, side=900)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
