@@ -1,17 +1,49 @@
 import os
 import sys
-import base64
 from contextlib import asynccontextmanager
 
 import cv2
 import numpy as np
-from fastapi import FastAPI, File, UploadFile, HTTPException, Query
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from pydantic import BaseModel, field_validator
 
 # Reuse the Sudoku pipeline from ../ocr/sudoku_ocr.py
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "ocr"))
 import sudoku_ocr as sk
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import vision_ocr
+
+VISION_API_KEY = os.environ.get("GOOGLE_VISION_API_KEY", "").strip()
+
+
+class GridIn(BaseModel):
+    grid: list[list[int]]
+
+    @field_validator("grid")
+    @classmethod
+    def _validate(cls, v):
+        if len(v) != 9 or any(len(row) != 9 for row in v):
+            raise ValueError("grid must be 9x9")
+        if any(not (0 <= n <= 9) for row in v for n in row):
+            raise ValueError("each cell must be 0-9 (0 = blank)")
+        return v
+
+
+def find_conflicts(grid):
+    """Return [row, col] pairs whose value duplicates another in its row/column/box."""
+    bad = []
+    for r in range(9):
+        for c in range(9):
+            n = grid[r][c]
+            if n == 0:
+                continue
+            grid[r][c] = 0
+            if not sk.is_valid(grid, n, (r, c)):
+                bad.append([r, c])
+            grid[r][c] = n
+    return bad
 
 
 @asynccontextmanager
@@ -22,13 +54,12 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Sudoku Solver API",
-    version="1.0.0",
-    description="Upload a photo of a Sudoku puzzle; get back the detected and solved grids.",
+    version="2.0.0",
+    description="Read a Sudoku puzzle from a photo (/read), let the user correct it, then solve (/solve).",
     lifespan=lifespan,
 )
 
-# Permissive CORS for local development (a Flutter web client or emulator can call it).
-# Tighten allow_origins to your app's domain before deploying.
+# Permissive CORS for development. Tighten allow_origins before exposing publicly.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -42,11 +73,9 @@ def health():
     return {"status": "ok", "service": "sudoku-solver"}
 
 
-@app.post("/solve")
-async def solve(
-    file: UploadFile = File(..., description="image of a Sudoku puzzle"),
-    include_image: bool = Query(False, description="also return a base64 PNG of the solved board"),
-):
+@app.post("/read")
+async def read(file: UploadFile = File(..., description="image of a Sudoku puzzle")):
+    """OCR only: return the detected 9x9 grid (0 = blank) for the user to review/correct."""
     data = await file.read()
     if not data:
         raise HTTPException(status_code=400, detail="Empty file upload.")
@@ -60,26 +89,38 @@ async def solve(
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))
 
-    detected = sk.read_grid(warped)
-    if not sk.is_consistent(detected):
+    engine = "tesseract"
+    detected = None
+    if VISION_API_KEY:
+        try:
+            detected = vision_ocr.read_grid_vision(warped, VISION_API_KEY)
+            engine = "vision"
+        except Exception:
+            detected = None  # fall back to Tesseract on any Vision failure
+    if detected is None:
+        detected = sk.read_grid(warped)
+
+    return {"detected": detected, "engine": engine}
+
+
+@app.post("/solve")
+async def solve(payload: GridIn):
+    """Solve a (user-confirmed) 9x9 grid. Reports conflicting cells instead of guessing."""
+    grid = payload.grid
+
+    conflicts = find_conflicts(grid)
+    if conflicts:
         raise HTTPException(
             status_code=422,
-            detail="The digits read from the image break Sudoku rules - the OCR likely "
-                   "misread a cell. Try a clearer, straight-on image.",
+            detail={
+                "message": "This grid breaks Sudoku rules - a number is duplicated in a row, "
+                           "column, or box. Fix the highlighted cells.",
+                "conflicts": conflicts,
+            },
         )
 
-    solved = [row[:] for row in detected]
+    solved = [row[:] for row in grid]
     if not sk.solve(solved):
-        raise HTTPException(
-            status_code=422,
-            detail="No valid solution - the puzzle is unsolvable or a digit was misread.",
-        )
+        raise HTTPException(status_code=422, detail={"message": "No solution exists for this grid."})
 
-    response = {"detected": detected, "solved": solved}
-
-    if include_image:
-        ok, buf = cv2.imencode(".png", sk.render_solution(warped, detected, solved))
-        if ok:
-            response["solved_image_png_base64"] = base64.b64encode(buf).decode("ascii")
-
-    return JSONResponse(response)
+    return {"solved": solved}

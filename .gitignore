@@ -25,3 +25,7 @@ Thumbs.db
 # Generated data / logs
 exercise_history.xlsx
 *.log
+
+# Secrets (e.g. GOOGLE_VISION_API_KEY lives here on the server)
+.env
+

@@ -1,6 +1,7 @@
 fastapi
 uvicorn[standard]
 python-multipart
+httpx
 
 # shared with the CV pipeline in ../ocr/sudoku_ocr.py
 # headless build: no GUI/X11 libs, smaller image, right choice for a server

@@ -3,8 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-import '../models/solve_result.dart';
 import '../services/sudoku_api.dart';
+import '../widgets/editable_sudoku_grid.dart';
 import '../widgets/sudoku_grid.dart';
 
 class SudokuSolverScreen extends StatefulWidget {
@@ -19,7 +19,10 @@ class _SudokuSolverScreenState extends State<SudokuSolverScreen> {
   final _picker = ImagePicker();
 
   Uint8List? _imageBytes;
-  SolveResult? _result;
+  List<List<int>>? _grid; // editable, detected then user-corrected
+  List<List<int>>? _solved;
+  ({int r, int c})? _selected;
+  Set<String> _conflicts = {};
   bool _loading = false;
   String? _error;
 
@@ -29,22 +32,30 @@ class _SudokuSolverScreenState extends State<SudokuSolverScreen> {
     final bytes = await picked.readAsBytes();
     setState(() {
       _imageBytes = bytes;
-      _result = null;
+      _grid = null;
+      _solved = null;
+      _selected = null;
+      _conflicts = {};
       _error = null;
     });
+    await _read();
   }
 
-  Future<void> _solve() async {
+  Future<void> _read() async {
     final bytes = _imageBytes;
     if (bytes == null) return;
     setState(() {
       _loading = true;
       _error = null;
-      _result = null;
+      _solved = null;
     });
     try {
-      final result = await _api.solve(bytes);
-      setState(() => _result = result);
+      final grid = await _api.read(bytes);
+      setState(() {
+        _grid = grid;
+        _selected = null;
+        _conflicts = {};
+      });
     } on SudokuApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
@@ -52,6 +63,53 @@ class _SudokuSolverScreenState extends State<SudokuSolverScreen> {
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  void _setDigit(int n) {
+    final sel = _selected;
+    final g = _grid;
+    if (sel == null || g == null) return;
+    setState(() {
+      g[sel.r][sel.c] = n;
+      _conflicts = {};
+    });
+  }
+
+  Future<void> _solve() async {
+    final g = _grid;
+    if (g == null) return;
+    setState(() {
+      _loading = true;
+      _error = null;
+      _conflicts = {};
+    });
+    try {
+      final solved = await _api.solve(g);
+      setState(() {
+        _solved = solved;
+        _selected = null;
+      });
+    } on SudokuApiException catch (e) {
+      setState(() {
+        _error = e.message;
+        _conflicts = e.conflicts.map((p) => '${p[0]},${p[1]}').toSet();
+      });
+    } catch (e) {
+      setState(() => _error = 'Something went wrong: $e');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  void _newPhoto() {
+    setState(() {
+      _imageBytes = null;
+      _grid = null;
+      _solved = null;
+      _selected = null;
+      _conflicts = {};
+      _error = null;
+    });
   }
 
   @override
@@ -84,26 +142,14 @@ class _SudokuSolverScreenState extends State<SudokuSolverScreen> {
               ],
             ),
             const SizedBox(height: 16),
-            if (_imageBytes != null) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: Image.memory(_imageBytes!, height: 220, fit: BoxFit.cover),
+
+            if (_loading)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 8),
+                child: LinearProgressIndicator(),
               ),
-              const SizedBox(height: 16),
-            ],
-            FilledButton.icon(
-              onPressed: (_imageBytes == null || _loading) ? null : _solve,
-              icon: _loading
-                  ? const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.auto_awesome),
-              label: Text(_loading ? 'Solving...' : 'Solve'),
-            ),
-            const SizedBox(height: 16),
-            if (_error != null)
+
+            if (_error != null) ...[
               Card(
                 color: theme.colorScheme.errorContainer,
                 child: Padding(
@@ -114,19 +160,110 @@ class _SudokuSolverScreenState extends State<SudokuSolverScreen> {
                   ),
                 ),
               ),
-            if (_result != null) ...[
+              const SizedBox(height: 12),
+            ],
+
+            // --- REVIEW / EDIT phase ---
+            if (_grid != null && _solved == null) ...[
+              Text('Check the numbers', style: theme.textTheme.titleMedium),
+              const SizedBox(height: 4),
+              Text(
+                'Tap a cell and fix anything the scanner got wrong, then tap Solve.',
+                style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 8),
+              EditableSudokuGrid(
+                grid: _grid!,
+                selected: _selected,
+                conflicts: _conflicts,
+                onTap: (r, c) => setState(() => _selected = (r: r, c: c)),
+              ),
+              const SizedBox(height: 12),
+              _NumberPad(
+                enabled: _selected != null && !_loading,
+                onDigit: _setDigit,
+              ),
+              const SizedBox(height: 12),
+              FilledButton.icon(
+                onPressed: _loading ? null : _solve,
+                icon: const Icon(Icons.auto_awesome),
+                label: const Text('Solve'),
+              ),
+              TextButton(
+                onPressed: _loading ? null : _newPhoto,
+                child: const Text('New photo'),
+              ),
+            ],
+
+            // --- SOLVED phase ---
+            if (_solved != null) ...[
               Text('Solved', style: theme.textTheme.titleMedium),
               const SizedBox(height: 8),
-              SudokuGrid(detected: _result!.detected, solved: _result!.solved),
+              SudokuGrid(detected: _grid!, solved: _solved!),
               const SizedBox(height: 8),
               Text(
-                'Bold = read from your photo   ·   colored = filled in by the solver',
+                'Bold = your numbers   ·   colored = filled in by the solver',
                 style: theme.textTheme.bodySmall,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => setState(() => _solved = null),
+                      child: const Text('Edit'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: _newPhoto,
+                      child: const Text('New photo'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ],
         ),
       ),
+    );
+  }
+}
+
+class _NumberPad extends StatelessWidget {
+  final bool enabled;
+  final void Function(int) onDigit;
+
+  const _NumberPad({required this.enabled, required this.onDigit});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      alignment: WrapAlignment.center,
+      children: [
+        for (var n = 1; n <= 9; n++)
+          SizedBox(
+            width: 56,
+            height: 48,
+            child: OutlinedButton(
+              onPressed: enabled ? () => onDigit(n) : null,
+              style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+              child: Text('$n', style: const TextStyle(fontSize: 18)),
+            ),
+          ),
+        SizedBox(
+          width: 56,
+          height: 48,
+          child: OutlinedButton(
+            onPressed: enabled ? () => onDigit(0) : null,
+            style: OutlinedButton.styleFrom(padding: EdgeInsets.zero),
+            child: const Icon(Icons.backspace_outlined, size: 18),
+          ),
+        ),
+      ],
     );
   }
 }
