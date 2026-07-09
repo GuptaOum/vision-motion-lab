@@ -3,6 +3,7 @@ uvicorn[standard]
 python-multipart
 
 # shared with the CV pipeline in ../ocr/sudoku_ocr.py
-opencv-python
+# headless build: no GUI/X11 libs, smaller image, right choice for a server
+opencv-python-headless
 numpy
 pytesseract

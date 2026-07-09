@@ -1,0 +1,10 @@
+services:
+  sudoku-api:
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    image: sudoku-solver-api
+    container_name: sudoku-api
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-8000}:8000"

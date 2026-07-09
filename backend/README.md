@@ -109,6 +109,36 @@ final bytes = base64Decode(data['solved_image_png_base64'] as String);
 final widget = Image.memory(bytes);
 ```
 
+## Docker
+
+The image bundles the Tesseract engine and uses `opencv-python-headless`, so no host setup is
+needed beyond Docker. The build context is the **repo root** (it pulls in both `backend/` and
+`ocr/`), which the compose file already handles.
+
+```bash
+cd backend
+docker compose up -d --build
+# API on http://localhost:8000  (override with HOST_PORT)
+```
+
+## Deploy to EC2
+
+Same flow as the FaceAttendance stack — `git archive → scp → docker compose up -d --build` — wrapped
+in [`deploy.ps1`](deploy.ps1):
+
+```powershell
+cd backend
+.\deploy.ps1 -Server ec2-user@<EC2_IP> -KeyPath C:\Users\hp\.ssh\<key>.pem
+```
+
+The remote host needs **Docker + the compose plugin**. Open the chosen port (default **8000**) in the
+instance's **security group**, then point the Flutter app's `baseUrl` at `http://<EC2_IP>:8000`.
+
+> **Co-hosting note.** If you deploy onto a box that already serves port 80 (e.g. the FaceAttendance
+> instance), keep `HOST_PORT=8000` so the two don't collide, or run nginx in front for path-based
+> routing (`/sudoku` → this container). t3.micro (1 GB) is enough to run it, but add ~1 GB swap if a
+> build ever gets OOM-killed.
+
 ## Notes
 
 - Accuracy is bounded by the OCR step — feed a clear, straight-on image for best results
