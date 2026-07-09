@@ -8,7 +8,11 @@ services:
     restart: unless-stopped
     environment:
       # Set these in a gitignored .env next to this file. Reader priority:
-      # Groq (vision LLM) -> OCR.space -> Vision -> Tesseract (always available).
+      # Bedrock (Claude vision) -> Groq -> OCR.space -> Vision -> Tesseract.
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-}
+      AWS_REGION: ${AWS_REGION:-ap-south-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-}
       OCRSPACE_API_KEY: ${OCRSPACE_API_KEY:-}

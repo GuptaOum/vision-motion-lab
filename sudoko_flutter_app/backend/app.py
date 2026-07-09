@@ -16,7 +16,10 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import vision_ocr
 import ocrspace_ocr
 import groq_ocr
+import bedrock_ocr
 
+BEDROCK_MODEL_ID = os.environ.get("BEDROCK_MODEL_ID", "").strip()
+AWS_REGION = os.environ.get("AWS_REGION", "ap-south-1").strip()
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "").strip()
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "").strip() or groq_ocr.DEFAULT_MODEL
 VISION_API_KEY = os.environ.get("GOOGLE_VISION_API_KEY", "").strip()
@@ -85,8 +88,14 @@ async def read(file: UploadFile = File(..., description="image of a Sudoku puzzl
     if not data:
         raise HTTPException(status_code=400, detail="Empty file upload.")
 
-    # LLM path: hand the whole photo to the vision model, which finds the grid
+    # LLM path: hand the whole photo to a vision model, which finds the grid
     # itself (no OpenCV detection needed - best for messy/handwritten grids).
+    if BEDROCK_MODEL_ID:
+        try:
+            detected = bedrock_ocr.read_grid_bedrock(data, BEDROCK_MODEL_ID, AWS_REGION)
+            return {"detected": detected, "engine": "bedrock"}
+        except Exception:
+            pass
     if GROQ_API_KEY:
         try:
             detected = groq_ocr.read_grid_groq(data, GROQ_API_KEY, GROQ_MODEL)
