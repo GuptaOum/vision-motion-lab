@@ -17,7 +17,9 @@ bare-bones headless counter up to a threaded Tkinter GUI that logs your reps to 
   version) persist history to a spreadsheet.
 - **Hand finger counter** — counts raised fingers per hand with left/right hand labelling.
 - **Head-turn counter** — counts left/right head turns using MediaPipe Holistic.
-- **Odds and ends** — Sudoku-grid OCR, Canny edge detection, a Piano Tiles auto-clicker,
+- **Sudoku solver** — reads a puzzle from a photo (perspective-corrected grid + digit OCR) and
+  solves it with backtracking, optionally rendering the answer back onto the board.
+- **Odds and ends** — Canny edge detection, a Piano Tiles auto-clicker,
   turtle/Tkinter GUI experiments, and small learning snippets.
 
 ## Repository structure
@@ -52,7 +54,7 @@ vision-motion-lab/
 │   ├── webcam_snapshot.py           Grab a single frame to disk
 │   └── edge_detection.py            Live Canny edge detection
 ├── ocr/
-│   └── sudoku_ocr.py                Detect a Sudoku grid and OCR its digits (pytesseract)
+│   └── sudoku_ocr.py                Detect a Sudoku grid, OCR its digits, and solve it
 ├── automation/             Desktop automation bots
 │   ├── piano_tiles_bot.py           Pixel-watching auto-clicker for Piano Tiles
 │   ├── spiral_drawing.py            Draw a spiral by moving the mouse
@@ -97,6 +99,9 @@ Each script is self-contained. From the repo root, for example:
 python body_pose_tracking/arm_curl_counter.py
 python hand_tracking/finger_counter_labeled.py
 python opencv_basics/edge_detection.py
+
+# Sudoku: read a puzzle photo, solve it, and save the filled board
+python ocr/sudoku_ocr.py path/to/puzzle.jpg --save solved.png
 ```
 
 Most webcam windows share these keyboard controls:
