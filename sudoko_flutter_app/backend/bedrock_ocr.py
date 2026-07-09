@@ -3,9 +3,9 @@ import re
 
 import boto3
 
-# Gemma 3 27B and Amazon Nova are billed as normal AWS usage (covered by credits,
-# no card) - unlike Anthropic/Marketplace models which require a payment instrument.
-DEFAULT_MODEL = "google.gemma-3-27b-it"
+# Amazon Nova (and Gemma) are billed as normal AWS usage (covered by credits, no
+# card) - unlike Anthropic/Marketplace models which require a payment instrument.
+DEFAULT_MODEL = "apac.amazon.nova-pro-v1:0"
 
 PROMPT = (
     "The image contains a 9x9 Sudoku puzzle. Read the digits exactly as written, "
